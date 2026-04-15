@@ -3,60 +3,54 @@ import urequests
 import time
 from machine import Pin, PWM
 
-# --- 설정 구간 ---
-SSID = "YOUR_WIFI_NAME"
-PASSWORD = "YOUR_WIFI_PASSWORD"
-URL = "https://pico-d188e-default-rtdb.asia-southeast1.firebasedatabase.app/ledStatus.json"
+# WiFi 설정
+ssid = "YOUR_WIFI"
+password = "YOUR_PASSWORD"
 
-# RGB LED 연결 핀 (본인의 회로에 맞게 GP 번호 수정)
-PIN_R = 13
-PIN_G = 14
-PIN_B = 15
-
-# PWM 객체 생성
-pwm_r = PWM(Pin(PIN_R))
-pwm_g = PWM(Pin(PIN_G))
-pwm_b = PWM(Pin(PIN_B))
-
-# 주파수 설정 (빛 떨림 방지)
-for p in [pwm_r, pwm_g, pwm_b]:
-    p.freq(1000)
-
-def apply_rgb(r, g, b):
-    # 0~255 범위를 MicroPython PWM 범위인 0~65535로 매핑
-    pwm_r.duty_u16(int(r * 65535 / 255))
-    pwm_g.duty_u16(int(g * 65535 / 255))
-    pwm_b.duty_u16(int(b * 65535 / 255))
+# Firebase URL
+url = "https://pico-d188e-default-rtdb.asia-southeast1.firebasedatabase.app/.json"
 
 # WiFi 연결
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
-wlan.connect(SSID, PASSWORD)
+wlan.connect(ssid, password)
 
-print("Connecting to WiFi...")
+print("WiFi 연결 중...")
 while not wlan.isconnected():
     time.sleep(1)
-print("Connected! IP:", wlan.ifconfig()[0])
 
-# 메인 루프
+print("WiFi 연결 완료:", wlan.ifconfig())
+
+# PWM 설정 (0~65535)
+led_r = PWM(Pin(15))
+led_g = PWM(Pin(14))
+led_b = PWM(Pin(13))
+
+led_r.freq(1000)
+led_g.freq(1000)
+led_b.freq(1000)
+
+def set_color(r, g, b):
+    # 0~255 → 0~65535 변환
+    led_r.duty_u16(int(r * 257))
+    led_g.duty_u16(int(g * 257))
+    led_b.duty_u16(int(b * 257))
+
 while True:
     try:
-        response = urequests.get(URL)
-        if response.status_code == 200:
-            data = response.json()
-            
-            # 각각의 키값(r, g, b)을 안전하게 가져옴 (데이터가 없으면 0)
-            r_val = data.get('r', 0)
-            g_val = data.get('g', 0)
-            b_val = data.get('b', 0)
-            
-            print(f"Received -> R: {r_val}, G: {g_val}, B: {b_val}")
-            apply_rgb(r_val, g_val, b_val)
-            
-        response.close()
-    except Exception as e:
-        print("Error:", e)
-    
-    time.sleep(0.5) # 확인 주기 (0.5초)
+        res = urequests.get(url)
+        data = res.json()
+        res.close()
 
-    
+        r = data.get("Red", 0)
+        g = data.get("Green", 0)
+        b = data.get("Blue", 0)
+
+        print("RGB:", r, g, b)
+
+        set_color(r, g, b)
+
+    except Exception as e:
+        print("에러:", e)
+
+    time.sleep(1)
