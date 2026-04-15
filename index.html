@@ -1,36 +1,62 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Pico W Remote Control</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-        button { padding: 20px 40px; font-size: 20px; cursor: pointer; margin: 10px; border-radius: 10px; border: none; }
-        .on { background-color: #4CAF50; color: white; }
-        .off { background-color: #f44336; color: white; }
-    </style>
-</head>
-<body>
-    <h1>Pico W LED Control</h1>
-    <div id="statusText">데이터 확인 중...</div>
-    <br>
-    <button class="on" onclick="setLED('ON')">LED ON</button>
-    <button class="off" onclick="setLED('OFF')">LED OFF</button>
+import network
+import urequests
+import time
+from machine import Pin, PWM
 
-    <script>
-        // 본인의 Firebase URL로 교체 (끝에 /ledStatus.json 을 붙여야 합니다)
-        const dbUrl = "https://pico-d188e-default-rtdb.asia-southeast1.firebasedatabase.app/ledStatus.json";
+# --- 설정 구간 ---
+SSID = "YOUR_WIFI_NAME"
+PASSWORD = "YOUR_WIFI_PASSWORD"
+URL = "https://pico-d188e-default-rtdb.asia-southeast1.firebasedatabase.app/ledStatus.json"
 
-        function setLED(state) {
-            fetch(dbUrl, {
-                method: 'PUT',
-                body: JSON.stringify(state)
-            })
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('statusText').innerText = "상태: " + data;
-            });
-        }
-    </script>
-</body>
-</html>
+# RGB LED 연결 핀 (본인의 회로에 맞게 GP 번호 수정)
+PIN_R = 13
+PIN_G = 14
+PIN_B = 15
+
+# PWM 객체 생성
+pwm_r = PWM(Pin(PIN_R))
+pwm_g = PWM(Pin(PIN_G))
+pwm_b = PWM(Pin(PIN_B))
+
+# 주파수 설정 (빛 떨림 방지)
+for p in [pwm_r, pwm_g, pwm_b]:
+    p.freq(1000)
+
+def apply_rgb(r, g, b):
+    # 0~255 범위를 MicroPython PWM 범위인 0~65535로 매핑
+    pwm_r.duty_u16(int(r * 65535 / 255))
+    pwm_g.duty_u16(int(g * 65535 / 255))
+    pwm_b.duty_u16(int(b * 65535 / 255))
+
+# WiFi 연결
+wlan = network.WLAN(network.STA_IF)
+wlan.active(True)
+wlan.connect(SSID, PASSWORD)
+
+print("Connecting to WiFi...")
+while not wlan.isconnected():
+    time.sleep(1)
+print("Connected! IP:", wlan.ifconfig()[0])
+
+# 메인 루프
+while True:
+    try:
+        response = urequests.get(URL)
+        if response.status_code == 200:
+            data = response.json()
+            
+            # 각각의 키값(r, g, b)을 안전하게 가져옴 (데이터가 없으면 0)
+            r_val = data.get('r', 0)
+            g_val = data.get('g', 0)
+            b_val = data.get('b', 0)
+            
+            print(f"Received -> R: {r_val}, G: {g_val}, B: {b_val}")
+            apply_rgb(r_val, g_val, b_val)
+            
+        response.close()
+    except Exception as e:
+        print("Error:", e)
+    
+    time.sleep(0.5) # 확인 주기 (0.5초)
+
+    
