@@ -1,56 +1,58 @@
-import network
-import urequests
-import time
-from machine import Pin, PWM
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Pico W RGB Control</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; background-color: #222; color: white; }
+        .slider-container { width: 300px; margin: 0 auto; padding: 20px; background: #333; border-radius: 15px; }
+        input[type="range"] { width: 100%; margin: 15px 0; cursor: pointer; }
+        .preview { width: 100px; height: 100px; margin: 20px auto; border-radius: 50%; border: 3px solid white; }
+        #r { accent-color: red; }
+        #g { accent-color: green; }
+        #b { accent-color: blue; }
+    </style>
+</head>
+<body>
+    <h1>RGB LED Remote</h1>
+    
+    <div class="slider-container">
+        <div id="colorPreview" class="preview" style="background-color: rgb(0,0,0);"></div>
+        <div id="statusText">R: 0, G: 0, B: 0</div>
+        
+        <p>Red</p>
+        <input type="range" id="r" min="0" max="255" value="0" oninput="updateColor()">
+        <p>Green</p>
+        <input type="range" id="g" min="0" max="255" value="0" oninput="updateColor()">
+        <p>Blue</p>
+        <input type="range" id="b" min="0" max="255" value="0" oninput="updateColor()">
+    </div>
 
-# WiFi 설정
-ssid = "YOUR_WIFI"
-password = "YOUR_PASSWORD"
+    <script>
+        const dbUrl = "https://pico-d188e-default-rtdb.asia-southeast1.firebasedatabase.app/ledStatus.json";
 
-# Firebase URL
-url = "https://pico-d188e-default-rtdb.asia-southeast1.firebasedatabase.app/.json"
+        function updateColor() {
+            const rVal = document.getElementById('r').value;
+            const gVal = document.getElementById('g').value;
+            const bVal = document.getElementById('b').value;
 
-# WiFi 연결
-wlan = network.WLAN(network.STA_IF)
-wlan.active(True)
-wlan.connect(ssid, password)
+            // 미리보기 및 텍스트 업데이트
+            document.getElementById('colorPreview').style.backgroundColor = `rgb(${rVal},${gVal},${bVal})`;
+            document.getElementById('statusText').innerText = `R: ${rVal}, G: ${gVal}, B: ${bVal}`;
 
-print("WiFi 연결 중...")
-while not wlan.isconnected():
-    time.sleep(1)
+            // Firebase로 전송할 객체 생성
+            const colorData = {
+                "r": parseInt(rVal),
+                "g": parseInt(gVal),
+                "b": parseInt(bVal)
+            };
 
-print("WiFi 연결 완료:", wlan.ifconfig())
-
-# PWM 설정 (0~65535)
-led_r = PWM(Pin(15))
-led_g = PWM(Pin(14))
-led_b = PWM(Pin(13))
-
-led_r.freq(1000)
-led_g.freq(1000)
-led_b.freq(1000)
-
-def set_color(r, g, b):
-    # 0~255 → 0~65535 변환
-    led_r.duty_u16(int(r * 257))
-    led_g.duty_u16(int(g * 257))
-    led_b.duty_u16(int(b * 257))
-
-while True:
-    try:
-        res = urequests.get(url)
-        data = res.json()
-        res.close()
-
-        r = data.get("Red", 0)
-        g = data.get("Green", 0)
-        b = data.get("Blue", 0)
-
-        print("RGB:", r, g, b)
-
-        set_color(r, g, b)
-
-    except Exception as e:
-        print("에러:", e)
-
-    time.sleep(1)
+            // 데이터 전송 (PUT 방식)
+            fetch(dbUrl, {
+                method: 'PUT',
+                body: JSON.stringify(colorData)
+            });
+        }
+    </script>
+</body>
+</html>
