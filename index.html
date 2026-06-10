@@ -2,55 +2,33 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Pico W RGB Control</title>
+    <title>Pico W Remote Control</title>
     <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 50px; background-color: #222; color: white; }
-        .slider-container { width: 300px; margin: 0 auto; padding: 20px; background: #333; border-radius: 15px; }
-        input[type="range"] { width: 100%; margin: 15px 0; cursor: pointer; }
-        .preview { width: 100px; height: 100px; margin: 20px auto; border-radius: 50%; border: 3px solid white; }
-        #r { accent-color: red; }
-        #g { accent-color: green; }
-        #b { accent-color: blue; }
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+        button { padding: 20px 40px; font-size: 20px; cursor: pointer; margin: 10px; border-radius: 10px; border: none; }
+        .on { background-color: #4CAF50; color: white; }
+        .off { background-color: #f44336; color: white; }
     </style>
 </head>
 <body>
-    <h1>RGB LED Remote</h1>
-    
-    <div class="slider-container">
-        <div id="colorPreview" class="preview" style="background-color: rgb(0,0,0);"></div>
-        <div id="statusText">R: 0, G: 0, B: 0</div>
-        
-        <p>Red</p>
-        <input type="range" id="r" min="0" max="255" value="0" oninput="updateColor()">
-        <p>Green</p>
-        <input type="range" id="g" min="0" max="255" value="0" oninput="updateColor()">
-        <p>Blue</p>
-        <input type="range" id="b" min="0" max="255" value="0" oninput="updateColor()">
-    </div>
+    <h1>Pico W LED Control</h1>
+    <div id="statusText">데이터 확인 중...</div>
+    <br>
+    <button class="on" onclick="setLED('ON')">LED ON</button>
+    <button class="off" onclick="setLED('OFF')">LED OFF</button>
 
     <script>
-        const dbUrl = "https://pico-d188e-default-rtdb.asia-southeast1.firebasedatabase.app/led_Status.json";
+        // 본인의 Firebase URL로 교체 (끝에 /ledStatus.json 을 붙여야 합니다)
+        const dbUrl = "https://picoproject-54545-default-rtdb.firebaseio.com/led_status.json";
 
-        function updateColor() {
-            const rVal = document.getElementById('r').value;
-            const gVal = document.getElementById('g').value;
-            const bVal = document.getElementById('b').value;
-
-            // 미리보기 및 텍스트 업데이트
-            document.getElementById('colorPreview').style.backgroundColor = `rgb(${rVal},${gVal},${bVal})`;
-            document.getElementById('statusText').innerText = `R: ${rVal}, G: ${gVal}, B: ${bVal}`;
-
-            // Firebase로 전송할 객체 생성
-            const colorData = {
-                "r": parseInt(rVal),
-                "g": parseInt(gVal),
-                "b": parseInt(bVal)
-            };
-
-            // 데이터 전송 (PUT 방식)
+        function setLED(state) {
             fetch(dbUrl, {
                 method: 'PUT',
-                body: JSON.stringify(colorData)
+                body: JSON.stringify(state)
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('statusText').innerText = "상태: " + data;
             });
         }
     </script>
