@@ -4,34 +4,63 @@
     <meta charset="UTF-8">
     <title>Pico W Remote Control</title>
     <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-        button { padding: 20px 40px; font-size: 20px; cursor: pointer; margin: 10px; border-radius: 10px; border: none; }
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; background-color: #f9f9f9; }
+        .container { max-width: 500px; margin: 0 auto; padding: 20px; background: white; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        button { padding: 15px 30px; font-size: 18px; cursor: pointer; margin: 10px; border-radius: 10px; border: none; font-weight: bold; }
         .on { background-color: #4CAF50; color: white; }
         .off { background-color: #f44336; color: white; }
+        
+        /* 새로 추가된 센서 상태 스타일 */
+        .sensor-box { margin-top: 30px; padding: 20px; border-radius: 10px; font-size: 22px; font-weight: bold; }
+        .detected { background-color: #ffeb3b; color: #cc0000; border: 2px solid #cc0000; animation: blink 1s infinite; }
+        .clear { background-color: #e0e0e0; color: #555555; }
+        
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
-    <h1>Pico W LED Control</h1>
-    <div id="statusText">데이터 확인 중...</div>
-    <br>
-    <button class="on" onclick="setLED('ON')">LED ON</button>
-    <button class="off" onclick="setLED('OFF')">LED OFF</button>
+    <div class="container">
+        <h1>Pico W IoT Control</h1>
+        
+        <h3>💡 LED 제어</h3>
+        <div id="statusText" style="font-size: 18px; color: #666;">LED 데이터 확인 중...</div>
+        <button class="on" onclick="setLED('ON')">LED ON</button>
+        <button class="off" onclick="setLED('OFF')">LED OFF</button>
+
+        <hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">
+
+        <h3>🚨 적외선 센서 모니터링</h3>
+        <div id="sensorBox" class="sensor-box clear">센서 데이터 로딩 중...</div>
+    </div>
 
     <script>
-        // 본인의 Firebase URL로 교체 (끝에 /ledStatus.json 을 붙여야 합니다)
-        
-        const dbUrl = 'https://pico-d188e-default-rtdb.asia-southeast1.firebasedatabase.app/led_status.json' 
+        // Firebase URL 설정
+        const ledUrl = 'https://pico-d188e-default-rtdb.asia-southeast1.firebasedatabase.app/led_status.json';
+        const sensorUrl = 'https://pico-d188e-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_status.json';
 
+        // [기능 1] LED 제어 함수 (기존 유지)
         function setLED(state) {
-            fetch(dbUrl, {
+            fetch(ledUrl, {
                 method: 'PUT',
                 body: JSON.stringify(state)
             })
             .then(res => res.json())
             .then(data => {
                 document.getElementById('statusText').innerText = "상태: " + data;
-            });
+            })
+            .catch(err => console.error("LED 제어 오류:", err));
         }
-    </script>
-</body>
-</html>
+
+        // [기능 2] 새로 추가: 센서 상태 실시간으로 읽어오는 함수
+        function checkSensor() {
+            fetch(sensorUrl)
+            .then(res => res.json())
+            .then(data => {
+                const sensorBox = document.getElementById('sensorBox');
+                
+                if (data === "DETECTED") {
+                    sensorBox.innerText = "🚨
