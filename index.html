@@ -10,10 +10,10 @@
         .on { background-color: #4CAF50; color: white; }
         .off { background-color: #f44336; color: white; }
         
-        /* 새로 추가된 센서 상태 스타일 */
         .sensor-box { margin-top: 30px; padding: 20px; border-radius: 10px; font-size: 22px; font-weight: bold; }
         .detected { background-color: #ffeb3b; color: #cc0000; border: 2px solid #cc0000; animation: blink 1s infinite; }
         .clear { background-color: #e0e0e0; color: #555555; }
+        .error { background-color: #ffebee; color: #c62828; border: 1px solid #c62828; font-size: 16px; }
         
         @keyframes blink {
             0% { opacity: 1; }
@@ -27,7 +27,7 @@
         <h1>Pico W IoT Control</h1>
         
         <h3>💡 LED 제어</h3>
-        <div id="statusText" style="font-size: 18px; color: #666;">LED 데이터 확인 중...</div>
+        <div id="statusText" style="font-size: 18px; color: #666; margin-bottom: 10px;">LED 데이터 확인 중...</div>
         <button class="on" onclick="setLED('ON')">LED ON</button>
         <button class="off" onclick="setLED('OFF')">LED OFF</button>
 
@@ -38,12 +38,28 @@
     </div>
 
     <script>
-        // Firebase URL 설정
         const ledUrl = 'https://pico-d188e-default-rtdb.asia-southeast1.firebasedatabase.app/led_status.json';
         const sensorUrl = 'https://pico-d188e-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_status.json';
 
-        // [기능 1] LED 제어 함수 (기존 유지)
+        // 초기에 LED 상태도 함께 가져오는 함수 추가
+        function checkLED() {
+            fetch(ledUrl)
+            .then(res => res.json())
+            .then(data => {
+                if (data) {
+                    document.getElementById('statusText').innerText = "현재 상태: " + data;
+                } else {
+                    document.getElementById('statusText').innerText = "현재 상태: 데이터 없음 (피코 미연결)";
+                }
+            })
+            .catch(err => {
+                document.getElementById('statusText').innerText = "LED 로딩 실패 (URL 확인 필요)";
+            });
+        }
+
+        // LED 제어 함수
         function setLED(state) {
+            document.getElementById('statusText').innerText = "변경 중...";
             fetch(ledUrl, {
                 method: 'PUT',
                 body: JSON.stringify(state)
@@ -52,15 +68,54 @@
             .then(data => {
                 document.getElementById('statusText').innerText = "상태: " + data;
             })
-            .catch(err => console.error("LED 제어 오류:", err));
+            .catch(err => {
+                document.getElementById('statusText').innerText = "전송 실패!";
+                console.error(err);
+            });
         }
 
-        // [기능 2] 새로 추가: 센서 상태 실시간으로 읽어오는 함수
+        // 센서 상태 실시간 읽기 함수 (안정성 강화)
         function checkSensor() {
             fetch(sensorUrl)
             .then(res => res.json())
             .then(data => {
                 const sensorBox = document.getElementById('sensorBox');
                 
+                // 데이터가 전혀 없을 때 (null) 예외 처리
+                if (data === null) {
+                    sensorBox.innerText = "⚪ Firebase에 센서 데이터가 없습니다.";
+                    sensorBox.className = "sensor-box clear";
+                    return;
+                }
+                
                 if (data === "DETECTED") {
-                    sensorBox.innerText = "🚨
+                    sensorBox.innerText = "🚨 물체 감지됨!";
+                    sensorBox.className = "sensor-box detected";
+                } else if (data === "CLEAR") {
+                    sensorBox.innerText = "🟢 감지된 물체 없음";
+                    sensorBox.className = "sensor-box clear";
+                } else {
+                    sensorBox.innerText = "알 수 없는 데이터: " + data;
+                    sensorBox.className = "sensor-box clear";
+                }
+            })
+            .catch(err => {
+                const sensorBox = document.getElementById('sensorBox');
+                sensorBox.innerText = "❌ Firebase 연결 실패 (통신 오류)";
+                sensorBox.className = "sensor-box error";
+                console.error(err);
+            });
+        }
+
+        // 초기 실행
+        checkLED();
+        checkSensor();
+
+        // 3초마다 주기적으로 갱신
+        setInterval(() => {
+            checkLED();
+            checkSensor();
+        }, 3000);
+    </script>
+</body>
+</html>
