@@ -19,7 +19,8 @@
 
     <script>
         // 본인의 Firebase URL로 교체 (끝에 /ledStatus.json 을 붙여야 합니다)
-        const dbUrl = 'https://pico-d188e-default-rtdb.asia-southeast1.firebasedatabase.app/led_status.json' 
+        
+        const dbUrl = 'https://pico-d188e-default-rtdb.asia-southeast1.firebasedatabase.app/led_status' 
 
         function setLED(state) {
             fetch(dbUrl, {
